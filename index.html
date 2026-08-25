@@ -403,7 +403,7 @@
     <div class="cal-header">
         <div class="month-nav">
             <button id="prevMonthBtn">←</button>
-            <span id="currentMonthDisplay"></span>
+            <span id="currentMonthDisplay" style="display: flex; align-items: center; gap: 12px;"></span>
             <button id="nextMonthBtn">→</button>
         </div>
     </div>
@@ -559,6 +559,7 @@
         if (lunarStr === "八月十五") return "中秋";
 
         if (month === 4 && day === getQingMingDay(year)) return "清明";
+        if (month === 1 && day === 1) return "元旦";
         if (month === 5 && day === 1) return "劳动节";
         if (month === 10 && day === 1) return "国庆";
 
@@ -586,6 +587,9 @@
         // 清明
         if (month === 4 && day === getQingMingDay(year)) return true;
 
+        // 元旦 1
+        if (month === 1 && (day === 1 )) return true;
+
         // 五一 1-2
         if (month === 5 && (day === 1 || day === 2)) return true;
 
@@ -602,12 +606,62 @@
         return Math.floor(Y * 0.2422 + C) - Math.floor(Y / 4);
     }
 
+    // ==================== 计算每月工作日天数 ====================
+    function calculateWorkDays(year, month) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        let workDays = 0;
+
+        // 第一步：按照大小周计算正常上班天数（不考虑法定假）
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month - 1, day);
+            const wd = date.getDay();
+
+            // 周日：休息
+            if (wd === 0) {
+                continue;
+            }
+
+            // 周六：根据大小周判断
+            if (wd === 6) {
+                if (isWorkSaturday(date)) {
+                    workDays++;  // 大周上班周六，算工作日
+                }
+                // 小周周六休息，不算
+                continue;
+            }
+
+            // 周一到周五：正常工作日
+            workDays++;
+        }
+
+        // 第二步：统计本月法定节假日总天数（不管落在周几）
+        let legalHolidayCount = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month - 1, day);
+            const lunarStr = getLunar(date);
+
+            if (isLegalHoliday(year, month, day, lunarStr)) {
+                legalHolidayCount++;
+            }
+        }
+
+        // 最终工作日 = 正常上班天数 - 法定节假日总天数
+        return workDays - legalHolidayCount;
+    }
+
     // ==================== 渲染 ====================
     function render() {
         const year = currentDisplayDate.getFullYear();
         const month = currentDisplayDate.getMonth() + 1;
+        // 计算工作日天数
+        const workDaysCount = calculateWorkDays(year, month);
 
-        document.getElementById('currentMonthDisplay').innerText = `${year}年${month}月`;
+        document.getElementById('currentMonthDisplay').innerHTML = `
+            <span>${year}年${month}月</span>
+            <span style="font-size: 0.9rem; font-weight: 400; color: #1d6df0; background: rgba(29,109,240,0.1); padding: 2px 14px; border-radius: 20px;">
+                🏢 ${workDaysCount}个工作日
+            </span>
+        `;
 
         const firstDay = new Date(year, month-1, 1);
         let firstWeekday = firstDay.getDay();
